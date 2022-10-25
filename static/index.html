@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Energy Control</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body style="background-color: black; color: white">
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
+      crossorigin="anonymous"
+    ></script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/jquery@3.6.1/dist/jquery.min.js"
+      integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ="
+      crossorigin="anonymous"
+    ></script>
+
+    <div class="container text-center">
+      <div class="row">
+        <div class="col">
+          <dl>
+            <dt>Power</dt>
+            <dd>
+              <button
+                id="power"
+                type="button"
+                class="btn btn-secondary"
+                data-bs-toggle="modal"
+                data-bs-target="#hoursModal"
+              >
+                -
+              </button>
+            </dd>
+
+            <dt>Mode</dt>
+            <dd>
+              <button id="mode" type="button" class="btn btn-secondary">
+                -
+              </button>
+            </dd>
+
+            <dt>Fan</dt>
+            <dd>
+              <button id="fan" type="button" class="btn btn-secondary">
+                -
+              </button>
+            </dd>
+
+            <dt>Temperature</dt>
+            <dd>
+              <div class="input-group">
+                <input type="number" class="form-control" id="temp" />
+                <button id="setTemp" type="button" class="btn btn-primary">
+                  Set
+                </button>
+              </div>
+            </dd>
+
+            <dt>Price limit</dt>
+            <dd>
+              <div class="input-group">
+                <input type="number" class="form-control" id="price" />
+                <button id="setPrice" type="button" class="btn btn-primary">
+                  Set
+                </button>
+              </div>
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <h1 style="margin-top: 2em" id="currentPrice"></h1>
+          <table class="table">
+            <tbody id="price-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hours Modal -->
+    <div
+      class="modal fade"
+      id="hoursModal"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="hoursModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="hoursModalLabel">Hours</h5>
+          </div>
+          <div class="modal-body">
+            <input type="number" class="form-control" id="hours" />
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button
+              id="setPower"
+              type="button"
+              class="btn btn-primary"
+              data-bs-dismiss="modal"
+            >
+              Set
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const updateState = (resp) => {
+      if (resp.power) {
+        $("#power").removeClass().addClass("btn btn-success");
+        $("#power").text("ON");
+      } else {
+        $("#power").removeClass().addClass("btn btn-danger");
+        $("#power").text("OFF");
+      }
+
+      if (resp.mode == "HEAT") {
+        $("#mode").removeClass().addClass("btn btn-danger");
+        $("#mode").text("HEAT");
+      } else if (resp.mode == "COLD") {
+        $("#mode").removeClass().addClass("btn btn-primary");
+        $("#mode").text("COLD");
+      }
+
+      if (resp.fan == "SILENT") {
+        $("#fan").removeClass().addClass("btn btn-primary");
+        $("#fan").text("SILENT");
+      } else if (resp.fan == "AUTO") {
+        $("#fan").removeClass().addClass("btn btn-success");
+        $("#fan").text("AUTO");
+      }
+
+      $("#price").val(resp.price);
+      $("#temp").val(resp.temp);
+    };
+
+    const post = (url, request) => {
+      return $.ajax({
+        url: url,
+        type: "POST",
+        data: JSON.stringify(request),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+      });
+    };
+
+    $("#setPower").click((evt) => {
+      if ($("#power").text() == "ON") {
+        post("/daikin/override", {
+          power: false,
+          hours: new Number($("#hours").val()),
+        }).then((resp) => updateState(resp));
+      } else if ($("#power").text() == "OFF") {
+        post("/daikin/override", {
+          power: true,
+          hours: new Number($("#hours").val()),
+        }).then((resp) => updateState(resp));
+      }
+    });
+
+    $("#mode").click((evt) => {
+      if (evt.target.textContent == "HEAT") {
+        post("/daikin/mode", { mode: "COLD" }).then((resp) =>
+          updateState(resp)
+        );
+      } else if (evt.target.textContent == "COLD") {
+        post("/daikin/mode", { mode: "HEAT" }).then((resp) =>
+          updateState(resp)
+        );
+      }
+    });
+
+    $("#fan").click((evt) => {
+      if (evt.target.textContent == "SILENT") {
+        post("/daikin/fan", { fan: "AUTO" }).then((resp) => updateState(resp));
+      } else if (evt.target.textContent == "AUTO") {
+        post("/daikin/fan", { fan: "SILENT" }).then((resp) =>
+          updateState(resp)
+        );
+      }
+    });
+
+    $("#setTemp").click((evt) => {
+      post("/daikin/temp", { temp: $("#temp").val() }).then((resp) =>
+        updateState(resp)
+      );
+    });
+
+    $("#setPrice").click((evt) => {
+      post("/daikin/price", { price: $("#price").val() }).then((resp) =>
+        updateState(resp)
+      );
+    });
+
+    $.getJSON("/daikin").then((resp) => {
+      updateState(resp);
+    });
+
+    //Ja Stoffsan, this is the way!
+    const getMyHours = (hour, offset) => {
+      hour = hour.substring(0, 2);
+      const conversionDate = new Date();
+      conversionDate.setUTCHours(hour);
+      conversionDate.setUTCHours(conversionDate.getUTCHours() + offset / 60);
+      return conversionDate.getUTCHours() + ":00";
+    };
+
+    $.getJSON("/prices").then((resp) => {
+      const today = resp.filter((day) => {
+        const date = new Date(day.date);
+        const now = new Date();
+
+        return (
+          date.getDate() == now.getUTCDate() &&
+          date.getMonth() == now.getUTCMonth() &&
+          date.getFullYear() == now.getUTCFullYear()
+        );
+      })[0].prices;
+
+      const pricesNextHoursToday = today.filter((entry) => {
+        const hour = entry.hour;
+        const currentHour =
+          new Date().getUTCHours() > 9
+            ? new Date().getUTCHours()
+            : "0" + new Date().getUTCHours();
+
+        return hour >= currentHour + ":00";
+      });
+
+      let pricesTomorrow = resp.filter((day) => {
+        const date = new Date(day.date);
+        const now = new Date();
+
+        return (
+          date.getDate() > now.getUTCDate() &&
+          date.getMonth() >= now.getUTCMonth() &&
+          date.getFullYear() >= now.getUTCFullYear()
+        );
+      })[0].prices;
+
+      if (!pricesTomorrow) {
+        pricesTomorrow = [];
+      }
+
+      const maxHours = 24;
+      const offset = new Date().getTimezoneOffset() * -1;
+      for (let i = 0; i < maxHours; i++) {
+        if (i < pricesNextHoursToday.length) {
+          if (pricesNextHoursToday[i].price == null) {
+            return;
+          }
+          const hour = getMyHours(pricesNextHoursToday[i].hour, offset);
+          $("#price-table").html(
+            $("#price-table").html() +
+              `<tr class=\"table-dark\"><th>${hour}</th><td>${pricesNextHoursToday[i].price} öre/kWh</td></tr>`
+          );
+        } else {
+          if (pricesTomorrow[i - pricesNextHoursToday.length].price == null) {
+            return;
+          }
+          const hour = getMyHours(
+            pricesTomorrow[i - pricesNextHoursToday.length].hour,
+            offset
+          );
+          $("#price-table").html(
+            $("#price-table").html() +
+              `<tr class=\"table-dark\"><th>${hour}</th><td>${
+                pricesTomorrow[i - pricesNextHoursToday.length].price
+              } öre/kWh</td></tr>`
+          );
+        }
+      }
+    });
+  </script>
+</html>
