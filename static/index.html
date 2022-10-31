@@ -254,7 +254,7 @@
         const now = new Date();
 
         return (
-          date.getDate() > now.getUTCDate() &&
+          (date.getDate() > now.getUTCDate() || date.getDate() == 1) &&
           date.getMonth() >= now.getUTCMonth() &&
           date.getFullYear() >= now.getUTCFullYear()
         );
